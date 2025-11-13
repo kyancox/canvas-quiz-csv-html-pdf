@@ -301,85 +301,94 @@ def add_question_structure_and_placeholders(html: str, group: dict) -> str:
         
         version_num += 1
     
-    # Add custom CSS
+    # Add custom CSS - compact style matching LaTeX rubric
     style_tag = soup.new_tag('style')
     style_tag.string = """
+        @page {
+            margin: 0.75in;
+        }
         body {
-            max-width: 1000px;
-            margin: 0 auto;
-            padding: 2em;
+            font-family: 'Computer Modern', 'Latin Modern', 'Times New Roman', serif;
+            font-size: 11pt;
+            line-height: 1.3;
+            max-width: 100%;
+            margin: 0;
+            padding: 0;
         }
         .question-version {
-            margin: 3em 0;
-            padding: 2.5em;
-            border: 3px solid #1565c0;
-            border-radius: 10px;
-            background-color: #fafafa;
-            page-break-after: always;
-        }
-        .question-version[style*="display: none"] {
-            display: none !important;
+            margin: 0;
+            padding: 0;
         }
         .rubric-image {
             display: block;
-            margin: 2em auto;
-            max-width: 100%;
+            margin: 0.5em auto;
+            max-width: 400px;
+            max-height: 250px;
             height: auto;
-            border: 1px solid #ddd;
-            padding: 15px;
-            background: white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         blockquote {
-            background-color: #e8f5e9;
-            border-left: 5px solid #4caf50;
-            padding: 1.5em;
-            margin: 1.5em 0;
-            border-radius: 5px;
+            background-color: #f0f0f0;
+            border-left: 3px solid #666;
+            padding: 0.4em 0.8em;
+            margin: 0.5em 0;
+            font-size: 10.5pt;
         }
         blockquote strong {
-            color: #2e7d32;
-            font-size: 1.1em;
+            color: #000;
+            font-weight: bold;
         }
         .student-answer-section {
-            margin: 2em 0;
-            padding: 1.5em;
-            background-color: #fff3e0;
-            border-left: 5px solid #ff9800;
-            border-radius: 5px;
+            margin: 0.3em 0 0.6em 0;
+            padding: 0.5em;
+            background-color: #fffacd;
+            border-left: 3px solid #ffa500;
         }
         .student-answer-section h3 {
-            margin-top: 0;
-            color: #e65100;
-            font-size: 1.1em;
+            margin: 0 0 0.3em 0;
+            color: #d2691e;
+            font-size: 10pt;
+            font-weight: bold;
         }
         .answer-placeholder {
-            padding: 1.5em;
+            padding: 0.4em;
             background-color: white;
-            border: 2px dashed #ff9800;
-            min-height: 100px;
-            font-family: 'Courier New', monospace;
-            color: #888;
-            font-size: 0.95em;
+            border: 1px solid #ddd;
+            min-height: 2em;
+            font-size: 10pt;
         }
         h1 {
-            color: #1565c0;
-            border-bottom: 3px solid #1565c0;
-            padding-bottom: 0.5em;
-            margin-top: 0;
+            color: #000;
+            font-size: 14pt;
+            font-weight: bold;
+            margin: 0.5em 0 0.3em 0;
+            padding: 0;
+            border-bottom: none;
         }
         h2 {
-            color: #0277bd;
-            margin-top: 1.5em;
-            background-color: #e3f2fd;
-            padding: 0.5em;
-            border-radius: 5px;
+            color: #000;
+            font-size: 11pt;
+            font-weight: bold;
+            margin: 0.5em 0 0.3em 0;
+            padding: 0;
+            background: none;
         }
         p {
-            line-height: 1.7;
+            margin: 0.3em 0;
+            line-height: 1.3;
+        }
+        figure {
+            margin: 0.5em 0;
         }
         table {
-            margin: 1.5em auto;
+            margin: 0.5em auto;
+            font-size: 10pt;
+        }
+        ul, ol {
+            margin: 0.3em 0;
+            padding-left: 1.5em;
+        }
+        li {
+            margin: 0.2em 0;
         }
     """
     
