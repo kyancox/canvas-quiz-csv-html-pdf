@@ -115,7 +115,7 @@ python run_quiz.py --quiz 5 --csv "Quiz 5 - Network Flow.csv" --limit 5
 python run_quiz.py --quiz 5 --csv "Quiz 5 - Network Flow.csv"
 
 # Force regenerate templates
-python run_quiz.py --quiz 5 --csv "Quiz 5.csv" --regenerate
+python run_quiz.py --quiz 5 --csv "Quiz 5 - Network Flow.csv" --regenerate
 ```
 
 ## Output Structure
