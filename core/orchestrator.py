@@ -130,15 +130,25 @@ async def process_quiz(
             )
             
             # Create output paths
-            # Format: output/quiz5/q1_network_flow/html/Alice_Smith.html
-            #         output/quiz5/q1_network_flow/pdf/Alice_Smith.pdf
+            # Format: output/quiz5/q1_network_flow/html/q1v9_nf_Alice_Smith.html
+            #         output/quiz5/q1_network_flow/pdf/q1v9_nf_Alice_Smith.pdf
             safe_name = sanitize_filename(student['name'])
+            
+            # Get variant number from student data
+            variant = student[group_id]['variant']
+            
+            # Get abbreviation from quiz config (default to quiz_id if missing)
+            abbr = config.get('abbr', f'q{quiz_id}')
+            
+            # Create variant-aware filename: q1v9_nf_Alice_Smith
+            variant_filename = f"{group_id}v{variant}_{abbr}_{safe_name}"
+            
             base_dir = f"output/quiz{quiz_id}/{group_id}_{group_name.lower().replace(' ', '_')}"
             html_dir = f"{base_dir}/html"
             pdf_dir = f"{base_dir}/pdf"
             
-            html_path = f"{html_dir}/{safe_name}.html"
-            pdf_path = f"{pdf_dir}/{safe_name}.pdf"
+            html_path = f"{html_dir}/{variant_filename}.html"
+            pdf_path = f"{pdf_dir}/{variant_filename}.pdf"
             
             # Save HTML file for debugging
             Path(html_dir).mkdir(parents=True, exist_ok=True)
