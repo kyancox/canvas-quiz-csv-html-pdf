@@ -15,7 +15,7 @@ Canvas quizzes often have question banks where each student receives different v
 
 This system generates **2 PDFs per student** (one per question type):
 - `q1_network_flow/pdf/q1v1_nf_Alice_Smith.pdf` - Alice's Q1 variant 1 + her answers + solution
-- `q2_bipartite_matching/pdf/q2v1_bm_Alice_Smith.pdf` - Alice's Q2 variant 1 + her answers + solution
+- `q2_bipartite_matching/pdf/q2v1_nf_Alice_Smith.pdf` - Alice's Q2 variant 1 + her answers + solution
 
 **Filename Format:** `q{question_number}v{variant_number}_{abbreviation}_{student_name}.pdf`
 
@@ -135,8 +135,8 @@ output/
     └── q2_bipartite_matching/
         ├── html/
         └── pdf/
-            ├── q2v1_bm_Alice_Smith.pdf   # Variant 1
-            ├── q2v2_bm_Bob_Jones.pdf     # Variant 2
+            ├── q2v1_nf_Alice_Smith.pdf   # Variant 1
+            ├── q2v2_nf_Bob_Jones.pdf     # Variant 2
             └── ...
 ```
 
