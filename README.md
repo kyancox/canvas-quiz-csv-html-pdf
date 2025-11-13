@@ -14,8 +14,8 @@ Canvas quizzes often have question banks where each student receives different v
 ## Solution Architecture
 
 This system generates **2 PDFs per student** (one per question type):
-- `q1_network_flow/pdf/q1v1_nf_Alice_Smith.pdf` - Alice's Q1 variant 1 + her answers + solution
-- `q2_bipartite_matching/pdf/q2v1_nf_Alice_Smith.pdf` - Alice's Q2 variant 1 + her answers + solution
+- `q1/pdf/q1v1_nf_Alice_Smith.pdf` - Alice's Q1 variant 1 + her answers + solution
+- `q2/pdf/q2v1_nf_Alice_Smith.pdf` - Alice's Q2 variant 1 + her answers + solution
 
 **Filename Format:** `q{question_number}v{variant_number}_{abbreviation}_{student_name}.pdf`
 
@@ -123,7 +123,7 @@ python run_quiz.py --quiz 5 --csv "Quiz 5.csv" --regenerate
 ```
 output/
 └── quiz5/
-    ├── q1_network_flow/
+    ├── q1/
     │   ├── html/
     │   │   ├── Alice_Smith.html  # For debugging
     │   │   └── images/            # Copied from templates
@@ -132,7 +132,7 @@ output/
     │       ├── q1v1_nf_Bob_Jones.pdf
     │       ├── q1v3_nf_Charlie_Brown.pdf # Variant 3
     │       └── ...
-    └── q2_bipartite_matching/
+    └── q2/
         ├── html/
         └── pdf/
             ├── q2v1_nf_Alice_Smith.pdf   # Variant 1
@@ -175,7 +175,7 @@ QUIZ_CONFIG = {
     'question_groups': [
         {
             'id': 'q1',
-            'name': 'Network Flow',
+            'name': 'Question 1',  # Generic question name
             'variant_tags': ['1.1', '1.2', '1.3', ..., '1.12'],  # One tag per variant
             'num_parts': 2,  # Number of subparts (same for all variants)
             'latex_line_range': (45, 671),
@@ -189,7 +189,7 @@ QUIZ_CONFIG = {
         },
         {
             'id': 'q2',
-            'name': 'Bipartite Matching',
+            'name': 'Question 2',  # Generic question name
             'variant_tags': ['2.1', '2.2', ..., '2.11'],
             'num_parts': 3,  # 3 subparts per variant
             'latex_line_range': (702, 1202),
