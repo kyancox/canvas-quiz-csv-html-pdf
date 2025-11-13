@@ -1,0 +1,447 @@
+"""
+Rubric Converter: Convert LaTeX rubrics to HTML templates.
+
+Assumes:
+- Rubric folder contains .tex file and all image files
+  - Images are referenced in LaTeX with \\includegraphics{filename.png}
+- Course staff unzips materials directly into rubrics/quizX/
+"""
+
+import subprocess
+import re
+import shutil
+from pathlib import Path
+from bs4 import BeautifulSoup
+from typing import Dict, Tuple
+
+
+def find_rubric_file(rubric_folder: str) -> Path:
+    """
+    Find the main rubric .tex file in the folder.
+    Looks for *_solutions_rubric.tex or *_rubric.tex
+    """
+    folder = Path(f"rubrics/{rubric_folder}")
+    
+    # Try to find solutions rubric first
+    candidates = list(folder.glob("*_solutions_rubric.tex"))
+    if not candidates:
+        candidates = list(folder.glob("*_rubric.tex"))
+    
+    if not candidates:
+        raise FileNotFoundError(f"No rubric .tex file found in {folder}")
+    
+    return candidates[0]
+
+
+def copy_images_to_templates(rubric_folder: str, quiz_id: int) -> None:
+    """
+    Copy all image files from rubrics/quizX/ to templates/quizX/images/
+    """
+    source_dir = Path(f"rubrics/{rubric_folder}")
+    dest_dir = Path(f"templates/quiz{quiz_id}/images")
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Copy all image files
+    image_extensions = ['*.png', '*.jpg', '*.jpeg', '*.svg', '*.gif']
+    copied = 0
+    
+    for pattern in image_extensions:
+        for img_file in source_dir.glob(pattern):
+            dest_file = dest_dir / img_file.name
+            shutil.copy2(img_file, dest_file)
+            copied += 1
+    
+    print(f"      ✓ Copied {copied} image files")
+
+
+def extract_latex_section(tex_file: Path, line_range: Tuple[int, int]) -> str:
+    """Extract specific line range from LaTeX file."""
+    with open(tex_file, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+    
+    start, end = line_range
+    return ''.join(lines[start-1:end])
+
+
+def replace_tikz_with_images(latex_content: str, image_map: dict) -> str:
+    """
+    Replace TikZ code with \includegraphics based on version mapping.
+    
+    Counts tikzpicture environments sequentially and replaces each with
+    the corresponding image from image_map.
+    
+    Pattern matches:
+    \begin{figure}[H]
+      \begin{tikzpicture}...\end{tikzpicture}
+      \centering
+    \end{figure}
+    """
+    if not image_map:
+        return latex_content
+    
+    # Match entire figure environment with tikzpicture (handles both orders)
+    # Pattern: figure[H] ... tikzpicture ... end{tikzpicture} ... centering ... end{figure}
+    tikz_pattern = r'\\begin\{figure\}\[H\].*?\\begin\{tikzpicture\}.*?\\end\{tikzpicture\}.*?\\end\{figure\}'
+    
+    version_num = 1
+    
+    def replace_with_image(match):
+        nonlocal version_num
+        if version_num in image_map:
+            img_file = image_map[version_num]
+            replacement = f'\\begin{{figure}}[H]\n\\centering\n\\includegraphics[width=0.8\\textwidth]{{{img_file}}}\n\\end{{figure}}'
+            version_num += 1
+            return replacement
+        else:
+            version_num += 1
+            return match.group(0)  # Keep original if no mapping
+    
+    return re.sub(tikz_pattern, replace_with_image, latex_content, flags=re.DOTALL)
+
+
+def preprocess_exam_latex(latex_content: str, image_map: dict = None) -> str:
+    """
+    Convert exam class environments to standard LaTeX for Pandoc.
+    """
+    # Replace TikZ with images if mapping provided
+    if image_map:
+        latex_content = replace_tikz_with_images(latex_content, image_map)
+    
+    # Remove questions/parts environment markers
+    latex_content = latex_content.replace(r'\begin{questions}', '')
+    latex_content = latex_content.replace(r'\end{questions}', '')
+    latex_content = latex_content.replace(r'\begin{parts}', '')
+    latex_content = latex_content.replace(r'\end{parts}', '')
+    
+    # Convert \question[points] to section
+    latex_content = re.sub(
+        r'\\question\[(\d+)\]',
+        r'\\section*{Question (\1 points)}',
+        latex_content
+    )
+    
+    # Convert \part[points] to subsection
+    latex_content = re.sub(
+        r'\\part\[(\d+)\]\s*',
+        r'\\subsection*{Part (\1 points)}',
+        latex_content
+    )
+    
+    # Convert solutionbox to blockquote
+    # Handle: \begin{solutionbox}{\stretch{N}} or \begin{solutionbox}{\stretch{0.4}}\\
+    # Matches integers or decimals in \stretch{}
+    latex_content = re.sub(
+        r'\\begin\{solutionbox\}\{\\stretch\{[\d.]+\}\}(\\\\)?',
+        r'\\begin{quote}\\textbf{Solution:}',
+        latex_content
+    )
+    latex_content = re.sub(
+        r'\\end\{solutionbox\}',
+        r'\\end{quote}',
+        latex_content
+    )
+    
+    return latex_content
+
+
+def latex_to_html_pandoc(latex_content: str, group_id: str) -> str:
+    """
+    Convert LaTeX to HTML using Pandoc.
+    """
+    # Create full document
+    full_latex = f"""\\documentclass{{article}}
+\\usepackage{{amsmath}}
+\\usepackage{{amsfonts}}
+\\usepackage{{amsthm}}
+\\usepackage{{graphicx}}
+\\begin{{document}}
+{latex_content}
+\\end{{document}}
+"""
+    
+    temp_tex = Path(f"temp_{group_id}.tex")
+    temp_html = Path(f"temp_{group_id}.html")
+    
+    try:
+        with open(temp_tex, 'w', encoding='utf-8') as f:
+            f.write(full_latex)
+        
+        # Run Pandoc
+        result = subprocess.run([
+            'pandoc',
+            str(temp_tex),
+            '-o', str(temp_html),
+            '--standalone',
+            '--mathjax',
+            '--from=latex',
+            '--to=html5',
+            '--css=https://cdn.jsdelivr.net/npm/water.css@2/out/water.css'
+        ], capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            print(f"      ⚠ Pandoc error:\n{result.stderr[:500]}")
+            # Save temp file for debugging
+            debug_file = Path(f"debug_{group_id}.tex")
+            shutil.copy2(temp_tex, debug_file)
+            print(f"      Saved debug file: {debug_file}")
+            raise RuntimeError(f"Pandoc failed - check {debug_file}")
+        
+        # Read result
+        with open(temp_html, 'r', encoding='utf-8') as f:
+            return f.read()
+        
+    finally:
+        if temp_tex.exists():
+            temp_tex.unlink()
+        if temp_html.exists():
+            temp_html.unlink()
+
+
+def fix_image_paths(html: str) -> str:
+    """
+    Update image src paths to point to images/ subdirectory.
+    Changes: <img src="Q4.png"> → <img src="images/Q4.png">
+    """
+    soup = BeautifulSoup(html, 'html.parser')
+    
+    for img in soup.find_all('img'):
+        src = img.get('src', '')
+        if src and not src.startswith(('http://', 'https://', 'images/', '/')):
+            img['src'] = f"images/{src}"
+            img['class'] = img.get('class', []) + ['rubric-image']
+    
+    return str(soup)
+
+
+def add_question_structure_and_placeholders(html: str, group: dict) -> str:
+    """
+    Add question version wrappers and answer placeholders.
+    
+    Structure:
+    - Each h1 "Question (X points)" becomes a question-version div
+    - Each h2 "Part (X points)" gets an answer placeholder after its solution
+    """
+    soup = BeautifulSoup(html, 'html.parser')
+    
+    # Find all question sections (h1 tags with "Question")
+    sections = soup.find_all('h1', string=re.compile(r'Question.*points'))
+    
+    version_num = 1
+    for section in sections:
+        # Save parent reference before extracting
+        parent = section.parent
+        insert_position = section.parent.index(section) if section.parent else 0
+        
+        # Create wrapper for this question version
+        wrapper = soup.new_tag('div', **{
+            'class': 'question-version',
+            'data-version': str(version_num),
+            'data-group': group['id']
+        })
+        
+        # Collect all elements until next question
+        elements_to_wrap = []
+        current = section
+        
+        while current:
+            next_elem = current.next_sibling
+            elements_to_wrap.append(current)
+            
+            # Stop if next is an h1 question
+            if next_elem and next_elem.name == 'h1' and next_elem.find(string=re.compile(r'Question')):
+                break
+            
+            current = next_elem
+        
+        # Extract elements and add to wrapper
+        for elem in elements_to_wrap:
+            if elem.parent:
+                elem.extract()
+            wrapper.append(elem)
+        
+        # Insert wrapper at original position
+        if parent:
+            parent.insert(insert_position, wrapper)
+        
+        # Add answer placeholders for each part
+        parts = wrapper.find_all('h2', string=re.compile(r'Part.*points'))
+        
+        for part_idx, part_header in enumerate(parts):
+            if part_idx < len(group['tags']):
+                tag = group['tags'][part_idx]
+                
+                # Find the solution blockquote after this part
+                solution_box = part_header.find_next('blockquote')
+                
+                # Create student answer section
+                answer_section = soup.new_tag('div', **{
+                    'class': 'student-answer-section',
+                    'data-tag': tag
+                })
+                
+                answer_heading = soup.new_tag('h3')
+                answer_heading.string = f"Student Answer ({tag}):"
+                answer_section.append(answer_heading)
+                
+                answer_placeholder = soup.new_tag('div', **{'class': 'answer-placeholder'})
+                answer_placeholder.string = f"{{{{ANSWER_{tag.replace('.', '_')}}}}}"
+                answer_section.append(answer_placeholder)
+                
+                # Insert after solution box
+                if solution_box:
+                    solution_box.insert_after(answer_section)
+        
+        version_num += 1
+    
+    # Add custom CSS
+    style_tag = soup.new_tag('style')
+    style_tag.string = """
+        body {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 2em;
+        }
+        .question-version {
+            margin: 3em 0;
+            padding: 2.5em;
+            border: 3px solid #1565c0;
+            border-radius: 10px;
+            background-color: #fafafa;
+            page-break-after: always;
+        }
+        .question-version[style*="display: none"] {
+            display: none !important;
+        }
+        .rubric-image {
+            display: block;
+            margin: 2em auto;
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            padding: 15px;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        blockquote {
+            background-color: #e8f5e9;
+            border-left: 5px solid #4caf50;
+            padding: 1.5em;
+            margin: 1.5em 0;
+            border-radius: 5px;
+        }
+        blockquote strong {
+            color: #2e7d32;
+            font-size: 1.1em;
+        }
+        .student-answer-section {
+            margin: 2em 0;
+            padding: 1.5em;
+            background-color: #fff3e0;
+            border-left: 5px solid #ff9800;
+            border-radius: 5px;
+        }
+        .student-answer-section h3 {
+            margin-top: 0;
+            color: #e65100;
+            font-size: 1.1em;
+        }
+        .answer-placeholder {
+            padding: 1.5em;
+            background-color: white;
+            border: 2px dashed #ff9800;
+            min-height: 100px;
+            font-family: 'Courier New', monospace;
+            color: #888;
+            font-size: 0.95em;
+        }
+        h1 {
+            color: #1565c0;
+            border-bottom: 3px solid #1565c0;
+            padding-bottom: 0.5em;
+            margin-top: 0;
+        }
+        h2 {
+            color: #0277bd;
+            margin-top: 1.5em;
+            background-color: #e3f2fd;
+            padding: 0.5em;
+            border-radius: 5px;
+        }
+        p {
+            line-height: 1.7;
+        }
+        table {
+            margin: 1.5em auto;
+        }
+    """
+    
+    if soup.head:
+        soup.head.append(style_tag)
+    
+    return str(soup.prettify())
+
+
+def convert_rubric_to_templates(config: dict) -> Dict[str, str]:
+    """
+    Main conversion function.
+    
+    Workflow:
+    1. Find rubric .tex file in rubrics/quizX/
+    2. Copy all images to templates/quizX/images/
+    3. Extract and convert each question group
+    4. Add structure and placeholders
+    """
+    rubric_folder = config['rubric_folder']
+    quiz_id = config['quiz_id']
+    
+    # Find rubric file
+    rubric_file = find_rubric_file(rubric_folder)
+    print(f"\n📝 Converting rubric: {rubric_file}")
+    
+    # Copy images
+    print(f"    - Copying image files...")
+    copy_images_to_templates(rubric_folder, quiz_id)
+    
+    templates = {}
+    for group in config['question_groups']:
+        print(f"\n  Processing {group['name']} ({group['id']})...")
+        print(f"    - Extracting lines {group['latex_line_range'][0]}-{group['latex_line_range'][1]}")
+        
+        # Extract section
+        latex_content = extract_latex_section(rubric_file, group['latex_line_range'])
+        
+        # Preprocess
+        print(f"    - Preprocessing LaTeX...")
+        image_map = group.get('image_map', None)
+        if image_map:
+            print(f"      - Replacing TikZ with images (manual mapping)...")
+        latex_content = preprocess_exam_latex(latex_content, image_map)
+        
+        # Convert to HTML
+        print(f"    - Converting to HTML with Pandoc...")
+        html = latex_to_html_pandoc(latex_content, group['id'])
+        
+        # Fix image paths
+        print(f"    - Fixing image paths...")
+        html = fix_image_paths(html)
+        
+        # Add structure
+        print(f"    - Adding question structure and answer placeholders...")
+        html = add_question_structure_and_placeholders(html, group)
+        
+        templates[group['id']] = html
+        print(f"    ✓ Template complete for {group['id']}")
+    
+    return templates
+
+
+def save_templates(templates: Dict[str, str], quiz_id: int) -> None:
+    """Save templates to disk."""
+    output_dir = Path(f"templates/quiz{quiz_id}")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    for group_id, html in templates.items():
+        output_file = output_dir / f"{group_id}_template.html"
+        with open(output_file, 'w', encoding='utf-8') as f:
+            f.write(html)
+        print(f"\n  💾 Saved: {output_file}")

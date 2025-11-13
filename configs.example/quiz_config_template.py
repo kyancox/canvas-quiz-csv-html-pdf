@@ -7,7 +7,7 @@ This file shows the structure but does not contain real question tags.
 QUIZ_CONFIG = {
     'quiz_id': 5,  # Quiz number (1-6)
     'quiz_name': 'Network Flow',  # Descriptive name
-    'rubric_file': 'quiz5_solutions_rubric.tex',  # LaTeX file in rubrics/
+    'rubric_folder': 'quiz5',  # Folder in rubrics/ (unzip course materials here)
     
     'question_groups': [
         {
@@ -16,7 +16,14 @@ QUIZ_CONFIG = {
             'tags': ['1.1', '1.2'],  # Canvas question tags [X.Y]
             'latex_line_range': (45, 671),  # Line range in rubric file
             'num_versions': 12,  # Number of question variants
-            'points': 3  # Total points for this question
+            'points': 3,  # Total points for this question
+            # Optional: Manual image mapping for TikZ graphs
+            # Only needed if rubric uses TikZ instead of \includegraphics
+            # 'image_map': {
+            #     1: 'graph1.png',
+            #     2: 'graph2.jpg',
+            #     # ... map each version to its image file
+            # }
         },
         {
             'id': 'q2', 

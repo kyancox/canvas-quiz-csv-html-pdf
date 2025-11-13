@@ -5,6 +5,7 @@ configs/*.py
 # Generated files
 output/
 templates/
+rubrics/         
 rubrics/*.html
 
 # Python
@@ -13,6 +14,8 @@ __pycache__/
 venv/
 .venv/
 
+# Debug files
+debug_*.tex    
+
 # OS files
 .DS_Store
-
