@@ -1,0 +1,23 @@
+# Canvas Quiz PDF System
+
+## Project Goal
+Generate individual PDFs per question type per student from Canvas quiz CSVs and LaTeX rubrics.
+
+## Architecture
+- Config-driven: One config file per quiz
+- Generic core modules work for all quizzes
+- Proprietary configs are git-ignored
+- HTML templates preserve student data exactly (no parsing/modification)
+
+## Code Style
+- Follow PEP 8
+- Use type hints
+- Descriptive variable names
+- Docstrings for all public functions
+- Keep functions focused and single-purpose
+
+## Key Constraints
+- Never modify student HTML answers
+- Support MathJax for equation rendering
+- Generate separate PDFs by question type for TA grading efficiency
+

@@ -1,0 +1,18 @@
+# Proprietary quiz configurations
+configs/*.py
+!configs/__init__.py
+
+# Generated files
+output/
+templates/
+rubrics/*.html
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# OS files
+.DS_Store
+
