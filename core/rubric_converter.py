@@ -224,13 +224,13 @@ def add_question_structure_and_placeholders(html: str, group: dict) -> str:
     soup = BeautifulSoup(html, 'html.parser')
     
     # Find all question sections (h1 tags with "Question")
-    sections = soup.find_all('h1', string=re.compile(r'Question.*points'))
+    # Use get_text() to handle newlines in text
+    all_h1s = soup.find_all('h1')
+    sections = [h1 for h1 in all_h1s if re.search(r'Question.*points', h1.get_text(), re.DOTALL)]
     
-    version_num = 1
-    for section in sections:
-        # Save parent reference before extracting
-        parent = section.parent
-        insert_position = section.parent.index(section) if section.parent else 0
+    # Process sections in reverse order to avoid DOM mutation issues
+    for version_num in range(len(sections), 0, -1):
+        section = sections[version_num - 1]
         
         # Create wrapper for this question version
         wrapper = soup.new_tag('div', **{
@@ -239,7 +239,7 @@ def add_question_structure_and_placeholders(html: str, group: dict) -> str:
             'data-group': group['id']
         })
         
-        # Collect all elements until next question
+        # Collect all elements until next question or end
         elements_to_wrap = []
         current = section
         
@@ -247,16 +247,24 @@ def add_question_structure_and_placeholders(html: str, group: dict) -> str:
             next_elem = current.next_sibling
             elements_to_wrap.append(current)
             
-            # Stop if next is an h1 question
-            if next_elem and next_elem.name == 'h1' and next_elem.find(string=re.compile(r'Question')):
-                break
+            # Stop if next is an h1 question (checking the actual tag, not just name)
+            if next_elem and next_elem.name == 'h1':
+                # Check if it's a question header
+                if next_elem.find(string=re.compile(r'Question')):
+                    break
             
             current = next_elem
+        
+        # Save parent and position
+        parent = section.parent
+        insert_position = list(parent.children).index(section) if parent and section in parent.children else 0
         
         # Extract elements and add to wrapper
         for elem in elements_to_wrap:
             if elem.parent:
                 elem.extract()
+        
+        for elem in elements_to_wrap:
             wrapper.append(elem)
         
         # Insert wrapper at original position
@@ -378,7 +386,7 @@ def add_question_structure_and_placeholders(html: str, group: dict) -> str:
     if soup.head:
         soup.head.append(style_tag)
     
-    return str(soup.prettify())
+    return str(soup)
 
 
 def convert_rubric_to_templates(config: dict) -> Dict[str, str]:

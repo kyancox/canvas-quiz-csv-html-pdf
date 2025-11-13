@@ -2,6 +2,9 @@
 configs/*.py
 !configs/__init__.py
 
+# Test data (SENSITIVE - contains mock quiz questions/answers)
+test_data/
+
 # Generated files
 output/
 templates/
