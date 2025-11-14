@@ -19,6 +19,7 @@ from .rubric_converter import convert_rubric_to_templates, save_templates
 from .csv_parser import CanvasCSVParser
 from .html_generator import generate_student_html, load_template, sanitize_filename
 from .pdf_generator import generate_pdf
+from .zip_creator import create_quiz_zip
 
 console = Console()
 
@@ -228,4 +229,16 @@ async def process_quiz(
   [dim]    └── pdf/ ({len(students)} files)[/dim]"""
     
     console.print(Panel(summary_text, border_style="green", padding=(1, 2)))
+    
+    # Create zip file automatically
+    console.print(f"\n[cyan]📦 Creating zip file...[/cyan]")
+    zip_success = create_quiz_zip(quiz_id)
+    if zip_success:
+        zip_path = Path(f"output/quiz{quiz_id}pdfs.zip")
+        if zip_path.exists():
+            zip_size = zip_path.stat().st_size / (1024 * 1024)  # MB
+            console.print(f"   [green]✓[/green] Created: {zip_path}")
+            console.print(f"   [dim]Size: {zip_size:.1f} MB[/dim]")
+    else:
+        console.print(f"   [yellow]⚠[/yellow] Warning: Could not create zip file")
 
