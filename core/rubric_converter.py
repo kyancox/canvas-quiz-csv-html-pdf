@@ -273,10 +273,13 @@ def add_question_structure_and_placeholders(html: str, group: dict) -> str:
         
         # Add answer placeholders for each part
         parts = wrapper.find_all('h2', string=re.compile(r'Part.*points'))
+        part_letters = ['a', 'b', 'c', 'd', 'e', 'f']
         
         for part_idx, part_header in enumerate(parts):
-            if part_idx < len(group['tags']):
-                tag = group['tags'][part_idx]
+            num_parts = group.get('num_parts', len(parts))
+            
+            if part_idx < num_parts:
+                part_letter = part_letters[part_idx]
                 
                 # Find the solution blockquote after this part
                 solution_box = part_header.find_next('blockquote')
@@ -284,15 +287,15 @@ def add_question_structure_and_placeholders(html: str, group: dict) -> str:
                 # Create student answer section
                 answer_section = soup.new_tag('div', **{
                     'class': 'student-answer-section',
-                    'data-tag': tag
+                    'data-part': part_letter
                 })
                 
                 answer_heading = soup.new_tag('h3')
-                answer_heading.string = f"Student Answer ({tag}):"
+                answer_heading.string = f"Student Answer (Part {part_letter.upper()}):"
                 answer_section.append(answer_heading)
                 
                 answer_placeholder = soup.new_tag('div', **{'class': 'answer-placeholder'})
-                answer_placeholder.string = f"{{{{ANSWER_{tag.replace('.', '_')}}}}}"
+                answer_placeholder.string = f"{{{{PART_{part_letter.upper()}}}}}"
                 answer_section.append(answer_placeholder)
                 
                 # Insert after solution box

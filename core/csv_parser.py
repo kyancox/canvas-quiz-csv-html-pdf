@@ -1,21 +1,21 @@
 """
-CSV Parser: Extract student data and question mappings from Canvas exports.
+CSV Parser: Extract student data from Canvas exports (FINAL VERSION).
 
-Parses Canvas "Student Analysis Report" CSV files to extract:
-- Question tags from column headers
-- Student answers (raw HTML)
-- Which question version each student received
+Canvas CSV structure:
+- Each variant has a tagged column for Part A (e.g., [1.5])
+- Subparts (B, C) are in SHARED columns used by all variants
+- Example: All Q1 variants use the same "partition" column for Part B
 """
 
 import pandas as pd
 import re
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from pathlib import Path
 
 
 class CanvasCSVParser:
     """
-    Parse Canvas quiz CSV exports and map student answers to question groups.
+    Parse Canvas quiz CSV with variant-specific Part A and shared Part B/C columns.
     """
     
     def __init__(self, csv_path: str, config: dict):
@@ -29,154 +29,152 @@ class CanvasCSVParser:
         self.csv_path = csv_path
         self.config = config
         self.df = pd.read_csv(csv_path)
-        self.question_columns = self._identify_question_columns()
+        
+        # Build column mappings
+        self.variant_columns = self._find_variant_columns()
+        self.shared_columns = self._find_shared_subpart_columns()
         
         print(f"\n📊 Parsed CSV: {Path(csv_path).name}")
         print(f"   - {len(self.df)} students")
-        print(f"   - {len(self.question_columns)} tagged questions found")
+        print(f"   - {len(self.variant_columns)} question variants found")
+        print(f"   - Shared subpart columns: {len(self.shared_columns)}")
     
-    def _extract_tag_from_text(self, text: str) -> Optional[str]:
+    def _find_variant_columns(self) -> Dict[str, int]:
         """
-        Extract [X.Y] tag from question text.
+        Find all tagged columns (Part A for each variant).
         
-        Examples:
-            "[1.1] What is the value..." → "1.1"
-            "Question text [2.3] with tag" → "2.3"
-            "No tag here" → None
+        Returns:
+            Dict mapping tag → column index
+            Example: {'1.1': 11, '1.5': 51, '2.3': 101}
         """
-        if not isinstance(text, str):
-            return None
+        variant_cols = {}
         
-        match = re.search(r'\[(\d+\.\d+)\]', text)
-        return match.group(1) if match else None
-    
-    def _map_tag_to_group(self, tag: str) -> Optional[str]:
-        """
-        Find which question group this tag belongs to.
-        
-        Args:
-            tag: Question tag like "1.1" or "2.3"
+        for col_idx, col_name in enumerate(self.df.columns):
+            col_text = str(col_name).strip()
             
-        Returns:
-            Group ID (e.g., "q1") or None
-        """
-        for group in self.config['question_groups']:
-            if tag in group['tags']:
-                return group['id']
-        return None
+            # Match X.Y at start of column text
+            match = re.match(r'^(\d+\.\d+)', col_text)
+            if match:
+                tag = match.group(1)
+                variant_cols[tag] = col_idx
+        
+        return variant_cols
     
-    def _identify_question_columns(self) -> List[Dict]:
+    def _find_shared_subpart_columns(self) -> Dict[str, int]:
         """
-        Scan CSV columns to find tagged questions.
+        Find shared subpart columns (Part B, Part C).
+        
+        These columns are used by ALL variants within a question group.
         
         Returns:
-            List of dicts with: {
-                'tag': '1.1',
-                'column_name': 'full column text',
-                'column_index': 15,
-                'group_id': 'q1',
-                'status_column': 'Status' or 'Status.1', etc.
+            Dict mapping identifier → column index
+            Example: {
+                'q1_b': 16,  # Q1 Part B (partition question)
+                'q2_b': 26,  # Q2 Part B
+                'q2_c': 31   # Q2 Part C
             }
         """
-        question_cols = []
+        shared = {}
         
-        for idx, col_name in enumerate(self.df.columns):
-            tag = self._extract_tag_from_text(col_name)
+        for col_idx, col_name in enumerate(self.df.columns):
+            col_text = str(col_name).lower().strip()
             
-            if tag:
-                group_id = self._map_tag_to_group(tag)
-                
-                if group_id:
-                    # Find corresponding Status column
-                    # Pattern: question column, then EarnedPoints, then Status
-                    status_col = None
-                    if idx + 2 < len(self.df.columns):
-                        potential_status = self.df.columns[idx + 2]
-                        if 'Status' in str(potential_status):
-                            status_col = potential_status
-                    
-                    question_cols.append({
-                        'tag': tag,
-                        'column_name': col_name,
-                        'column_index': idx,
-                        'group_id': group_id,
-                        'status_column': status_col
-                    })
+            # Q1 Part B: "partition" question
+            if 'partition' in col_text and 'minimum' in col_text and 'cut' in col_text:
+                shared['q1_b'] = col_idx
+            
+            # Q2 Part B/C: Starts with "Part B:" or "Part C:"
+            if col_text.startswith('part b:'):
+                shared['q2_b'] = col_idx
+            elif col_text.startswith('part c:'):
+                shared['q2_c'] = col_idx
         
-        return question_cols
+        return shared
     
-    def _determine_question_version(self, row: pd.Series, group_id: str) -> int:
+    def _map_tag_to_group(self, tag: str) -> Optional[Tuple[str, int]]:
         """
-        Determine which version of a question group the student received.
+        Map a tag to its question group and variant number.
         
-        Canvas exports separate columns for each variant, but they all have
-        the same tag (e.g., [1.1]). We detect the version by finding which
-        set of tag questions has Status != "Not Shown".
-        
-        Strategy:
-        1. Group question columns by tag (e.g., all [1.1] columns together)
-        2. For each tag group, find which occurrence was shown to student
-        3. The occurrence number = version number
+        Args:
+            tag: Question tag like "1.9" or "2.3"
+            
+        Returns:
+            (group_id, variant_number) or None
+        """
+        for group in self.config['question_groups']:
+            if tag in group['variant_tags']:
+                variant_num = group['variant_tags'].index(tag) + 1
+                return (group['id'], variant_num)
+        return None
+    
+    def _find_student_variant(self, row: pd.Series, group_id: str) -> Optional[str]:
+        """
+        Find which variant the student received for a question group.
         
         Args:
             row: Student's row from CSV
             group_id: Question group ID (e.g., 'q1')
             
         Returns:
-            Version number (1-12) or None if not found
+            Tag string (e.g., '1.5') or None
         """
-        # Get all questions for this group, grouped by tag
-        group_questions = [q for q in self.question_columns if q['group_id'] == group_id]
-        
-        # Group by tag (may have multiple columns per tag if question bank used)
-        tag_groups = {}
-        for q in group_questions:
-            tag = q['tag']
-            if tag not in tag_groups:
-                tag_groups[tag] = []
-            tag_groups[tag].append(q)
-        
-        # For each tag, find which occurrence was shown
-        # Use the first tag (e.g., 1.1) to determine version
-        first_tag = sorted(tag_groups.keys())[0]
-        tag_questions = tag_groups[first_tag]
-        
-        for idx, question in enumerate(tag_questions, start=1):
-            status_col = question['status_column']
-            if status_col and pd.notna(row.get(status_col)):
-                status = str(row[status_col])
-                if status != 'Not Shown' and status != 'not shown':
-                    # This is the version they received
-                    return idx
+        # Check all tags for this group
+        for tag, col_idx in self.variant_columns.items():
+            result = self._map_tag_to_group(tag)
+            if not result:
+                continue
+            
+            gid, variant_num = result
+            if gid != group_id:
+                continue
+            
+            # Check Status column (+2 from question column)
+            status_col_idx = col_idx + 2
+            if status_col_idx < len(row):
+                status = row.iloc[status_col_idx]
+                if pd.notna(status) and str(status) not in ['Not Attempted', 'Not Shown']:
+                    # This is the variant they received
+                    return tag
         
         return None
     
-    def _extract_student_answers(self, row: pd.Series, group_id: str) -> Dict[str, str]:
+    def _extract_subpart_answers(self, row: pd.Series, tag: str, group_id: str) -> Dict[str, str]:
         """
-        Extract all answers for a specific question group.
+        Extract answers for all subparts of a variant.
         
+        Args:
+            row: Student's row from CSV
+            tag: Variant tag (e.g., '1.5')
+            group_id: Question group ID (e.g., 'q1')
+            
         Returns:
-            Dict mapping tag → answer HTML
-            Example: {'1.1': '<p>6</p>', '1.2': '<p>{s},{t}</p>'}
+            Dict mapping part letter → answer HTML
+            Example: {'a': '<p>6</p>', 'b': '<p>{s},{t}</p>'}
         """
         answers = {}
         
-        for question in self.question_columns:
-            if question['group_id'] == group_id:
-                tag = question['tag']
-                col_name = question['column_name']
-                status_col = question['status_column']
-                
-                # Check if this question was shown to the student
-                if status_col and pd.notna(row.get(status_col)):
-                    status = str(row[status_col])
-                    if status != 'Not Shown' and status != 'not shown':
-                        # Extract answer
-                        answer = row.get(col_name, '')
-                        if pd.notna(answer):
-                            answers[tag] = str(answer)
-                        else:
-                            answers[tag] = ''  # Blank answer
+        # Part A: from the tagged column
+        if tag in self.variant_columns:
+            col_idx = self.variant_columns[tag]
+            answer = row.iloc[col_idx]
+            if pd.notna(answer) and str(answer).strip():
+                answers['a'] = str(answer)
+        
+        # Part B: from shared column
+        part_b_key = f'{group_id}_b'
+        if part_b_key in self.shared_columns:
+            col_idx = self.shared_columns[part_b_key]
+            answer = row.iloc[col_idx]
+            if pd.notna(answer) and str(answer).strip():
+                answers['b'] = str(answer)
+        
+        # Part C: from shared column (if exists)
+        part_c_key = f'{group_id}_c'
+        if part_c_key in self.shared_columns:
+            col_idx = self.shared_columns[part_c_key]
+            answer = row.iloc[col_idx]
+            if pd.notna(answer) and str(answer).strip():
+                answers['c'] = str(answer)
         
         return answers
     
@@ -189,8 +187,9 @@ class CanvasCSVParser:
                 'name': 'Alice Smith',
                 'id': '12345',
                 'q1': {
-                    'version': 3,
-                    'answers': {'1.1': '<p>6</p>', '1.2': '<p>...</p>'}
+                    'variant': 9,
+                    'tag': '1.9',
+                    'answers': {'a': '<p>6</p>', 'b': '<p>...</p>'}
                 },
                 'q2': { ... }
             }, ...]
@@ -208,16 +207,28 @@ class CanvasCSVParser:
             for group in self.config['question_groups']:
                 group_id = group['id']
                 
-                # Determine which version they got
-                version = self._determine_question_version(row, group_id)
+                # Find which variant they got
+                tag = self._find_student_variant(row, group_id)
                 
-                # Extract their answers
-                answers = self._extract_student_answers(row, group_id)
-                
-                student[group_id] = {
-                    'version': version if version else 1,  # Default to 1 if not found
-                    'answers': answers
-                }
+                if tag:
+                    result = self._map_tag_to_group(tag)
+                    if result:
+                        _, variant_num = result
+                        # Extract subpart answers
+                        answers = self._extract_subpart_answers(row, tag, group_id)
+                        
+                        student[group_id] = {
+                            'variant': variant_num,
+                            'tag': tag,
+                            'answers': answers
+                        }
+                else:
+                    # Default fallback
+                    student[group_id] = {
+                        'variant': 1,
+                        'tag': group['variant_tags'][0],
+                        'answers': {}
+                    }
             
             students.append(student)
         
@@ -229,9 +240,8 @@ class CanvasCSVParser:
         for group_id in ['q1', 'q2']:
             if group_id in student:
                 data = student[group_id]
-                print(f"    {group_id}: Version {data['version']}")
-                for tag, answer in data['answers'].items():
+                print(f"    {group_id}: Variant {data['variant']} (tag: {data['tag']})")
+                for part, answer in data['answers'].items():
                     answer_preview = answer[:50] + '...' if len(answer) > 50 else answer
                     answer_preview = answer_preview.replace('\n', ' ')
-                    print(f"      [{tag}]: {answer_preview}")
-
+                    print(f"      Part {part}: {answer_preview}")

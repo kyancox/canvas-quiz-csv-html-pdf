@@ -13,9 +13,12 @@ QUIZ_CONFIG = {
         {
             'id': 'q1',  # Unique identifier for this question group
             'name': 'Network Flow',  # Descriptive name for output folder
-            'tags': ['1.1', '1.2'],  # Canvas question tags [X.Y]
+            # Variant tags: each tag identifies ONE question variant
+            # e.g., [1.9] in CSV means student got variant 9 of question 1
+            'variant_tags': ['1.1', '1.2', '1.3', '1.4', '1.5', '1.6'],  # CUSTOMIZE
+            'num_parts': 2,  # Number of subparts (a, b, c, etc.) - same for all variants
             'latex_line_range': (45, 671),  # Line range in rubric file
-            'num_versions': 12,  # Number of question variants
+            'num_versions': 6,  # Number of question variants
             'points': 3,  # Total points for this question
             # Optional: Manual image mapping for TikZ graphs
             # Only needed if rubric uses TikZ instead of \includegraphics
@@ -28,9 +31,10 @@ QUIZ_CONFIG = {
         {
             'id': 'q2', 
             'name': 'Bipartite Matching',
-            'tags': ['2.1', '2.2', '2.3'],
+            'variant_tags': ['2.1', '2.2', '2.3', '2.4', '2.5'],  # CUSTOMIZE
+            'num_parts': 3,  # Number of subparts
             'latex_line_range': (703, 1202),
-            'num_versions': 12,
+            'num_versions': 5,
             'points': 6
         }
     ]

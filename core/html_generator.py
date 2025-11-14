@@ -31,40 +31,42 @@ def sanitize_filename(name: str) -> str:
     return name
 
 
-def hide_other_versions(html: str, version_to_show: int) -> str:
+def hide_other_variants(html: str, variant_to_show: int) -> str:
     """
-    Hide all question versions except the specified one.
-    
-    Uses CSS display:none to hide versions the student didn't receive.
+    Hide all question variants except the specified one.
     
     Args:
-        html: Full HTML template with all versions
-        version_to_show: Version number to display (1-12)
+        html: Full HTML template with all variants
+        variant_to_show: Variant number to display (1-12)
         
     Returns:
-        Modified HTML with hidden versions
+        Modified HTML with only student's variant
     """
     soup = BeautifulSoup(html, 'html.parser')
     
     # Find all question-version divs
-    version_divs = soup.find_all('div', class_='question-version')
-    print(f"      Found {len(version_divs)} question versions in template")
+    variant_divs = soup.find_all('div', class_='question-version')
+    print(f"      Found {len(variant_divs)} question variants in template")
     
-    # Create a list copy to avoid modification during iteration
-    divs_to_remove = []
+    # Find the one to keep
+    variant_to_keep = None
+    for div in variant_divs:
+        version = div.get('data-version', '')
+        if version == str(variant_to_show):
+            variant_to_keep = div
+            print(f"      Showing variant {version}")
+            break
     
-    for div in version_divs:
-        version = div.get('data-version')
-        
-        if version != str(version_to_show):
-            # Mark for removal
-            divs_to_remove.append(div)
-        else:
-            print(f"      Showing version {version}")
+    # Remove all variant divs
+    for div in variant_divs:
+        try:
+            div.extract()  # Remove from tree but don't destroy
+        except:
+            pass
     
-    # Remove unwanted versions
-    for div in divs_to_remove:
-        div.decompose()
+    # Re-add only the one we want
+    if variant_to_keep and soup.body:
+        soup.body.append(variant_to_keep)
     
     return str(soup)
 
@@ -73,23 +75,23 @@ def insert_student_answers(html: str, answers: Dict[str, str]) -> str:
     """
     Replace answer placeholders with student's HTML.
     
-    Replaces: {{ANSWER_1_1}} with actual student answer HTML
+    Replaces: {{PART_A}}, {{PART_B}}, etc. with actual student answers
     
     Args:
         html: HTML template with placeholders
-        answers: Dict mapping tag → answer HTML
-                 Example: {'1.1': '<p>6</p>', '1.2': '<p>{s},{t}</p>'}
+        answers: Dict mapping part letter → answer HTML
+                 Example: {'a': '<p>6</p>', 'b': '<p>{s},{t}</p>'}
         
     Returns:
         HTML with answers inserted
     """
-    for tag, answer_html in answers.items():
-        # Convert tag to placeholder format
-        placeholder = f"{{{{ANSWER_{tag.replace('.', '_')}}}}}"
+    for part_letter, answer_html in answers.items():
+        # Convert to placeholder format: {{PART_A}}, {{PART_B}}, etc.
+        placeholder = f"{{{{PART_{part_letter.upper()}}}}}"
         
         # Replace placeholder with actual answer
         # If answer is empty, insert a note
-        if answer_html.strip():
+        if answer_html and answer_html.strip():
             html = html.replace(placeholder, answer_html)
         else:
             html = html.replace(placeholder, '<p><em>(No answer provided)</em></p>')
@@ -106,8 +108,8 @@ def generate_student_html(
     Generate complete HTML for one student and one question group.
     
     Args:
-        template_html: Full HTML template (all versions)
-        student_data: Student dict with version and answers
+        template_html: Full HTML template (all variants)
+        student_data: Student dict with variant and answers
         group_id: Question group ID (e.g., 'q1')
         
     Returns:
@@ -115,11 +117,11 @@ def generate_student_html(
     """
     # Get student's data for this question group
     group_data = student_data[group_id]
-    version = group_data['version']
+    variant = group_data['variant']
     answers = group_data['answers']
     
-    # Hide other versions
-    html = hide_other_versions(template_html, version)
+    # Hide other variants
+    html = hide_other_variants(template_html, variant)
     
     # Insert student answers
     html = insert_student_answers(html, answers)
