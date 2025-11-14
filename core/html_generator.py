@@ -9,6 +9,7 @@ Takes HTML templates and student data, then:
 from bs4 import BeautifulSoup
 from pathlib import Path
 from typing import Dict
+from .latex_converter import sanitize_student_answer
 
 
 def load_template(template_path: str) -> str:
@@ -92,7 +93,9 @@ def insert_student_answers(html: str, answers: Dict[str, str]) -> str:
         # Replace placeholder with actual answer
         # If answer is empty, insert a note
         if answer_html and answer_html.strip():
-            html = html.replace(placeholder, answer_html)
+            # Sanitize and convert LaTeX patterns
+            cleaned_answer = sanitize_student_answer(answer_html)
+            html = html.replace(placeholder, cleaned_answer)
         else:
             html = html.replace(placeholder, '<p><em>(No answer provided)</em></p>')
     
@@ -142,7 +145,7 @@ def generate_student_html(
     
     info_p = soup.new_tag('p')
     info_p['style'] = 'margin: 0;'
-    info_p.string = f"ID: {student_data.get('id', 'N/A')}"
+    info_p.string = f"SISID: {student_data.get('sisid', 'N/A')}"
     info_div.append(info_p)
     
     # Insert at top of body

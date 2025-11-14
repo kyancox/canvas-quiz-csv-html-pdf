@@ -200,7 +200,7 @@ class CanvasCSVParser:
         for idx, row in df_subset.iterrows():
             student = {
                 'name': str(row['Name']),
-                'id': str(row['ID']) if pd.notna(row.get('ID')) else '',
+                'sisid': str(row['SISID']) if pd.notna(row.get('SISID')) else '',
             }
             
             # Process each question group
