@@ -103,7 +103,8 @@ def insert_student_answers(html: str, answers: Dict[str, str]) -> str:
 def generate_student_html(
     template_html: str,
     student_data: Dict,
-    group_id: str
+    group_id: str,
+    page_break_mode: str = 'same-page'
 ) -> str:
     """
     Generate complete HTML for one student and one question group.
@@ -129,6 +130,13 @@ def generate_student_html(
     
     # Add student info header
     soup = BeautifulSoup(html, 'html.parser')
+
+    if page_break_mode == 'each-part':
+        for section in soup.find_all('div', class_='student-answer-section'):
+            classes = section.get('class', [])
+            if 'page-break' not in classes:
+                classes.append('page-break')
+            section['class'] = classes
     
     # Create student info header
     info_div = soup.new_tag('div', **{

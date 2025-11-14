@@ -27,6 +27,7 @@ QUIZ_CONFIG = {
             #     2: 'graph2.jpg',
             #     # ... map each version to its image file
             # }
+            'page_break': 'same-page'
         },
         {
             'id': 'q2', 
@@ -36,6 +37,8 @@ QUIZ_CONFIG = {
             'latex_line_range': (703, 1202),
             'num_versions': 5,
             'points': 6
+            ,
+            'page_break': 'each-part'
         }
     ]
 }

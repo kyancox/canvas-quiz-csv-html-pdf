@@ -281,6 +281,21 @@ def add_question_structure_and_placeholders(html: str, group: dict) -> str:
             if part_idx < num_parts:
                 part_letter = part_letters[part_idx]
                 
+                # Update part header text to include letter (Part A, Part B, etc.)
+                original_text = part_header.get_text()
+                # Replace "Part" with "Part A", "Part B", etc.
+                new_text = f"Part {part_letter.upper()}" + original_text[4:]  # Keep the " (X points)" part
+                part_header.string = new_text
+                
+                # Add page-break class to header if configured
+                if group.get('page_break') == 'each-part':
+                    # Add page-break to ALL parts (A, B, C) - separates from question intro
+                    existing_class = part_header.get('class', [])
+                    if isinstance(existing_class, str):
+                        existing_class = [existing_class]
+                    existing_class.append('page-break')
+                    part_header['class'] = existing_class
+                
                 # Find the solution blockquote after this part
                 solution_box = part_header.find_next('blockquote')
                 
@@ -374,6 +389,10 @@ def add_question_structure_and_placeholders(html: str, group: dict) -> str:
             margin: 0.5em 0 0.3em 0;
             padding: 0;
             background: none;
+        }
+        h2.page-break {
+            page-break-before: always;
+            margin-top: 2em;
         }
         p {
             margin: 0.3em 0;
