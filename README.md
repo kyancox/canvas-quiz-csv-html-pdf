@@ -5,6 +5,8 @@ A production-ready Python system that converts Canvas LMS quiz exports (CSV form
 **Built for:** CS 577: Introduction to Algorithms @ UW-Madison  
 **Status:** ✅ Production-ready for Quiz 5
 
+<img src="assets/demo.png" alt="CLI Demo Screenshot" width="700"/>
+
 ## Features
 
 - ✅ **Individualized PDFs**: One PDF per question type per student
