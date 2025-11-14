@@ -47,7 +47,6 @@ def hide_other_variants(html: str, variant_to_show: int) -> str:
     
     # Find all question-version divs
     variant_divs = soup.find_all('div', class_='question-version')
-    print(f"      Found {len(variant_divs)} question variants in template")
     
     # Find the one to keep
     variant_to_keep = None
@@ -55,7 +54,6 @@ def hide_other_variants(html: str, variant_to_show: int) -> str:
         version = div.get('data-version', '')
         if version == str(variant_to_show):
             variant_to_keep = div
-            print(f"      Showing variant {version}")
             break
     
     # Remove all variant divs
@@ -143,10 +141,15 @@ def generate_student_html(
     info_heading.string = f"Student: {student_data['name']}"
     info_div.append(info_heading)
     
-    info_p = soup.new_tag('p')
-    info_p['style'] = 'margin: 0;'
-    info_p.string = f"SISID: {student_data.get('sisid', 'N/A')}"
-    info_div.append(info_p)
+    info_sisid = soup.new_tag('p')
+    info_sisid['style'] = 'margin: 0;'
+    info_sisid.string = f"SISID: {student_data.get('sisid', 'N/A')}"
+    info_div.append(info_sisid)
+    
+    info_id = soup.new_tag('p')
+    info_id['style'] = 'margin: 0;'
+    info_id.string = f"Canvas ID: {student_data.get('id', 'N/A')}"
+    info_div.append(info_id)
     
     # Insert at top of body
     body = soup.find('body')

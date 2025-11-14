@@ -34,10 +34,13 @@ class CanvasCSVParser:
         self.variant_columns = self._find_variant_columns()
         self.shared_columns = self._find_shared_subpart_columns()
         
-        print(f"\n📊 Parsed CSV: {Path(csv_path).name}")
-        print(f"   - {len(self.df)} students")
-        print(f"   - {len(self.variant_columns)} question variants found")
-        print(f"   - Shared subpart columns: {len(self.shared_columns)}")
+        from rich.console import Console
+        console = Console()
+        
+        console.print(f"\n[cyan]📊 Parsed CSV:[/cyan] {Path(csv_path).name}")
+        console.print(f"   [green]✓[/green] {len(self.df)} students")
+        console.print(f"   [green]✓[/green] {len(self.variant_columns)} question variants found")
+        console.print(f"   [green]✓[/green] {len(self.shared_columns)} shared subpart columns")
     
     def _find_variant_columns(self) -> Dict[str, int]:
         """
@@ -201,6 +204,7 @@ class CanvasCSVParser:
             student = {
                 'name': str(row['Name']),
                 'sisid': str(row['SISID']) if pd.notna(row.get('SISID')) else '',
+                'id': str(row['ID']) if pd.notna(row.get('ID')) else '',
             }
             
             # Process each question group
