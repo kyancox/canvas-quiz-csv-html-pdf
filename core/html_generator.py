@@ -130,13 +130,6 @@ def generate_student_html(
     
     # Add student info header
     soup = BeautifulSoup(html, 'html.parser')
-
-    if page_break_mode == 'each-part':
-        for section in soup.find_all('div', class_='student-answer-section'):
-            classes = section.get('class', [])
-            if 'page-break' not in classes:
-                classes.append('page-break')
-            section['class'] = classes
     
     # Create student info header
     info_div = soup.new_tag('div', **{
