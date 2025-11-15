@@ -32,6 +32,9 @@ Examples:
   # Generate PDFs for one specific student
   python run_quiz.py --quiz 5 --csv "Quiz 5.csv" --student "Alice Smith"
   
+  # Skip zip file creation (faster for testing)
+  python run_quiz.py --quiz 5 --csv "Quiz 5.csv" --limit 3 --no-zip
+  
   # Force regenerate templates
   python run_quiz.py --quiz 5 --csv "Quiz 5.csv" --regenerate
         """
@@ -61,6 +64,12 @@ Examples:
         '--student',
         type=str,
         help='Generate PDFs for specific student by name (case-insensitive, partial match)'
+    )
+    
+    parser.add_argument(
+        '--no-zip',
+        action='store_true',
+        help='Skip creating zip file at the end'
     )
     
     parser.add_argument(
@@ -96,6 +105,7 @@ Examples:
             config,
             limit=args.limit,
             student_name=args.student,
+            skip_zip=args.no_zip,
             force_regenerate=args.regenerate
         ))
     except KeyboardInterrupt:

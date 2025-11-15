@@ -69,6 +69,7 @@ async def process_quiz(
     config: dict,
     limit: Optional[int] = None,
     student_name: Optional[str] = None,
+    skip_zip: bool = False,
     force_regenerate: bool = False
 ) -> None:
     """
@@ -79,6 +80,7 @@ async def process_quiz(
         config: Quiz configuration dict
         limit: Optional limit on number of students (for testing)
         student_name: Optional student name filter (case-insensitive, partial match)
+        skip_zip: If True, skip creating zip file at the end
         force_regenerate: Force regeneration of templates
     """
     quiz_id = config['quiz_id']
@@ -253,15 +255,18 @@ async def process_quiz(
     
     console.print(Panel(summary_text, border_style="green", padding=(1, 2)))
     
-    # Create zip file automatically
-    console.print(f"\n[cyan]📦 Creating zip file...[/cyan]")
-    zip_success = create_quiz_zip(quiz_id)
-    if zip_success:
-        zip_path = Path(f"output/quiz{quiz_id}pdfs.zip")
-        if zip_path.exists():
-            zip_size = zip_path.stat().st_size / (1024 * 1024)  # MB
-            console.print(f"   [green]✓[/green] Created: {zip_path}")
-            console.print(f"   [dim]Size: {zip_size:.1f} MB[/dim]")
+    # Create zip file automatically (unless skipped)
+    if not skip_zip:
+        console.print(f"\n[cyan]📦 Creating zip file...[/cyan]")
+        zip_success = create_quiz_zip(quiz_id)
+        if zip_success:
+            zip_path = Path(f"output/quiz{quiz_id}pdfs.zip")
+            if zip_path.exists():
+                zip_size = zip_path.stat().st_size / (1024 * 1024)  # MB
+                console.print(f"   [green]✓[/green] Created: {zip_path}")
+                console.print(f"   [dim]Size: {zip_size:.1f} MB[/dim]")
+        else:
+            console.print(f"   [yellow]⚠[/yellow] Warning: Could not create zip file")
     else:
-        console.print(f"   [yellow]⚠[/yellow] Warning: Could not create zip file")
+        console.print(f"\n[dim]⏭ Skipping zip file creation (--no-zip)[/dim]")
 
