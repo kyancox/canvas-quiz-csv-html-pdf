@@ -68,6 +68,7 @@ async def process_quiz(
     csv_path: str,
     config: dict,
     limit: Optional[int] = None,
+    student_name: Optional[str] = None,
     force_regenerate: bool = False
 ) -> None:
     """
@@ -77,6 +78,7 @@ async def process_quiz(
         csv_path: Path to Canvas CSV export
         config: Quiz configuration dict
         limit: Optional limit on number of students (for testing)
+        student_name: Optional student name filter (case-insensitive, partial match)
         force_regenerate: Force regeneration of templates
     """
     quiz_id = config['quiz_id']
@@ -92,10 +94,29 @@ async def process_quiz(
     # Step 2: Parse CSV
     console.print(f"\n[cyan]📊 Parsing CSV...[/cyan]")
     parser = CanvasCSVParser(csv_path, config)
-    students = parser.get_student_data(limit=limit)
+    all_students = parser.get_student_data(limit=None)  # Get all students first
     
-    if limit:
-        console.print(f"   [yellow]⚠ Limited to {limit} students for testing[/yellow]")
+    # Filter by student name if provided
+    if student_name:
+        if limit:
+            console.print(f"   [yellow]⚠[/yellow] Note: --limit ignored when using --student filter")
+        search_name = student_name.lower().strip()
+        students = [
+            s for s in all_students 
+            if search_name in s['name'].lower()
+        ]
+        if not students:
+            console.print(f"\n[red]✗[/red] Error: No students found matching '{student_name}'")
+            console.print(f"   [dim]Available students: {', '.join([s['name'] for s in all_students[:10]])}...[/dim]")
+            return
+        console.print(f"   [green]✓[/green] Found {len(students)} student(s) matching '{student_name}'")
+        if len(students) > 1:
+            console.print(f"   [yellow]⚠[/yellow] Multiple matches: {', '.join([s['name'] for s in students])}")
+    else:
+        students = all_students
+        if limit:
+            students = students[:limit]
+            console.print(f"   [yellow]⚠ Limited to {limit} students for testing[/yellow]")
     
     # Copy images to output folder for each question group
     console.print(f"\n[cyan]📁 Setting up output directories...[/cyan]")

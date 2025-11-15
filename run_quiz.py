@@ -29,6 +29,9 @@ Examples:
   # Full run (all students)
   python run_quiz.py --quiz 5 --csv "Quiz 5 - Network Flow.csv"
   
+  # Generate PDFs for one specific student
+  python run_quiz.py --quiz 5 --csv "Quiz 5.csv" --student "Alice Smith"
+  
   # Force regenerate templates
   python run_quiz.py --quiz 5 --csv "Quiz 5.csv" --regenerate
         """
@@ -52,6 +55,12 @@ Examples:
         '--limit',
         type=int,
         help='Limit number of students (for testing, recommended: 10 or less)'
+    )
+    
+    parser.add_argument(
+        '--student',
+        type=str,
+        help='Generate PDFs for specific student by name (case-insensitive, partial match)'
     )
     
     parser.add_argument(
@@ -86,6 +95,7 @@ Examples:
             args.csv,
             config,
             limit=args.limit,
+            student_name=args.student,
             force_regenerate=args.regenerate
         ))
     except KeyboardInterrupt:
