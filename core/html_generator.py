@@ -70,7 +70,7 @@ def hide_other_variants(html: str, variant_to_show: int) -> str:
     return str(soup)
 
 
-def insert_student_answers(html: str, answers: Dict[str, str]) -> str:
+def insert_student_answers(html: str, answers: Dict[str, str], num_parts: int = None) -> str:
     """
     Replace answer placeholders with student's HTML.
     
@@ -80,21 +80,36 @@ def insert_student_answers(html: str, answers: Dict[str, str]) -> str:
         html: HTML template with placeholders
         answers: Dict mapping part letter → answer HTML
                  Example: {'a': '<p>6</p>', 'b': '<p>{s},{t}</p>'}
+        num_parts: Number of parts expected (e.g., 2 for Q1, 3 for Q2)
+                   If None, only processes parts present in answers dict
         
     Returns:
         HTML with answers inserted
     """
-    for part_letter, answer_html in answers.items():
+    part_letters = ['a', 'b', 'c', 'd', 'e', 'f']
+    
+    # Determine which parts to process
+    if num_parts is not None:
+        # Process all expected parts
+        parts_to_process = part_letters[:num_parts]
+    else:
+        # Fallback: only process parts that exist in answers dict
+        parts_to_process = list(answers.keys())
+    
+    for part_letter in parts_to_process:
         # Convert to placeholder format: {{PART_A}}, {{PART_B}}, etc.
         placeholder = f"{{{{PART_{part_letter.upper()}}}}}"
         
-        # Replace placeholder with actual answer
-        # If answer is empty, insert a note
-        if answer_html and answer_html.strip():
+        # Get answer if it exists, otherwise None
+        answer_html = answers.get(part_letter)
+        
+        # Replace placeholder with actual answer or "(No answer provided)"
+        if answer_html and str(answer_html).strip():
             # Sanitize and convert LaTeX patterns
             cleaned_answer = sanitize_student_answer(answer_html)
             html = html.replace(placeholder, cleaned_answer)
         else:
+            # No answer provided - replace with note
             html = html.replace(placeholder, '<p><em>(No answer provided)</em></p>')
     
     return html
@@ -104,7 +119,8 @@ def generate_student_html(
     template_html: str,
     student_data: Dict,
     group_id: str,
-    page_break_mode: str = 'same-page'
+    page_break_mode: str = 'same-page',
+    num_parts: int = None
 ) -> str:
     """
     Generate complete HTML for one student and one question group.
@@ -113,6 +129,8 @@ def generate_student_html(
         template_html: Full HTML template (all variants)
         student_data: Student dict with variant and answers
         group_id: Question group ID (e.g., 'q1')
+        page_break_mode: Page break configuration ('same-page' or 'each-part')
+        num_parts: Number of parts expected (e.g., 2 for Q1, 3 for Q2)
         
     Returns:
         Complete HTML ready for PDF rendering
@@ -125,8 +143,8 @@ def generate_student_html(
     # Hide other variants
     html = hide_other_variants(template_html, variant)
     
-    # Insert student answers
-    html = insert_student_answers(html, answers)
+    # Insert student answers (pass num_parts to ensure all placeholders are replaced)
+    html = insert_student_answers(html, answers, num_parts=num_parts)
     
     # Add student info header
     soup = BeautifulSoup(html, 'html.parser')

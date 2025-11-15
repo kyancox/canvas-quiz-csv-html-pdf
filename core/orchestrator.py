@@ -168,11 +168,13 @@ async def process_quiz(
                 
                 # Generate HTML for this student + question
                 page_break_mode = group.get('page_break', 'same-page')
+                num_parts = group.get('num_parts')
                 html = generate_student_html(
                     templates[group_id],
                     student,
                     group_id,
-                    page_break_mode=page_break_mode
+                    page_break_mode=page_break_mode,
+                    num_parts=num_parts
                 )
                 
                 # Create output paths
